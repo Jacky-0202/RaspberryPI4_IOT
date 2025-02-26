@@ -1,0 +1,121 @@
+<!-- main.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HIPOINT PDS WI-FI Configuration</title>
+    <style>
+        /* Basic reset and background */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f4f4f4;
+        }
+
+        /* Main container (center the form) */
+        .container {
+            max-width: 400px; 
+            margin: 50px auto; 
+            background: #fff; 
+            border-radius: 5px; 
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); 
+            padding: 30px;
+        }
+
+        /* Center title and spacing */
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* Form label style */
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        /* Input fields */
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        /* Submit button */
+        input[type="submit"] {
+            background: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        /* Submit hover effect */
+        input[type="submit"]:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Your form -->
+        <h2>HIPOINT PDS CONFIG</h2>
+        <form action="/configure_wifi/" method="post">
+            <label for="ssid">SSID:</label>
+            <input type="text" id="ssid" name="ssid" required />
+
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required />
+            <input type="submit" value="Save" />
+        </form>
+    </div>
+
+    <!-- Bottom-right corner: "auto: OFF" + Toggle button -->
+    <div style="position: fixed; bottom: 10px; right: 10px; background: #fafafa; padding: 6px; border: 1px solid #ccc;">
+        <span>auto: <span id="autoState">OFF</span></span>
+        <button id="toggleBtn" onclick="toggleAutoState()">Toggle</button>
+    </div>
+
+    <script>
+        // 1) On page load, fetch current PRIORITY state
+        window.addEventListener('load', () => {
+            fetch('/get_priority')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.PRIORITY === true) {
+                        document.getElementById('autoState').innerText = 'ON';
+                    } else {
+                        document.getElementById('autoState').innerText = 'OFF';
+                    }
+                })
+                .catch(console.error);
+        });
+
+        // 2) Toggle PRIORITY when the button is clicked
+        function toggleAutoState() {
+            fetch('/toggle_priority', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.PRIORITY === true) {
+                    document.getElementById('autoState').innerText = 'ON';
+                } else {
+                    document.getElementById('autoState').innerText = 'OFF';
+                }
+            })
+            .catch(console.error);
+        }
+    </script>
+</body>
+</html>

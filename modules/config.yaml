@@ -1,0 +1,18 @@
+CONFIG:
+  PDS_ID: "PDSW00000"
+  VERSION: PDS_WIFI_V1
+
+CAMERA:
+  AWB_R: null
+  AWB_B: null
+  BRIGHTNESS: 110
+  FOCUS_POSITION: null
+
+RPI:
+  SHUTDOWN: true
+
+NETWORK:
+  SSID: null
+  PASW: null
+  PRIORITY: true
+  NETWORK_THRES : 40
