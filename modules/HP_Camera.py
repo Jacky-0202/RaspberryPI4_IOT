@@ -10,23 +10,19 @@ class CameraController:
     including resolution and JPEG compression. Also provides basic white balance adjustment.
     """
 
-    def __init__(self, imgs_dir=r"upload_files"):
+    def __init__(self, imgs_dir="upload_files"):
         """Initialize the camera, directories, and default settings."""
         self.imgs_dir = imgs_dir
         self.picam2 = Picamera2()
         
         # Define resolutions
-        self.low_resolution = (1536, 864)
-        self.high_resolution = (4608, 2596)
+        self.current_resolution = (4608, 2596)
         
         # Default JPEG qualities
-        self.low_jpeg_quality = 50
-        self.high_jpeg_quality = 90
+        self.current_jpeg_quality = 90
         
         # Current configuration
         self.started = False
-        self.current_resolution = self.low_resolution
-        self.current_jpeg_quality = self.low_jpeg_quality
 
         self.initial_configure_camera()  # Default to low resolution
 
@@ -48,7 +44,6 @@ class CameraController:
         if not self.started:
             self.picam2.start()
             self.started = True
-            print(f"Camera started with resolution {self.current_resolution} and JPEG quality {self.current_jpeg_quality}.")
 
     def close(self):
         """Stop the camera and release resources."""
@@ -58,29 +53,6 @@ class CameraController:
             print("Camera stopped.")
         # cv2.destroyAllWindows()
         print("Resources released.")
-
-    def set_quality(self, mode="low"):
-        """
-        Switch between low and high quality modes.
-        """
-        if mode == "low":
-            self.current_resolution = self.low_resolution
-            self.current_jpeg_quality = self.low_jpeg_quality
-            print(f"Switching to LOW quality: Resolution {self.low_resolution}, JPEG quality {self.low_jpeg_quality}")
-        elif mode == "high":
-            self.current_resolution = self.high_resolution
-            self.current_jpeg_quality = self.high_jpeg_quality
-            print(f"Switching to HIGH quality: Resolution {self.high_resolution}, JPEG quality {self.high_jpeg_quality}")
-        else:
-            raise ValueError("Quality mode must be 'low' or 'high'.")
-        
-        # Reconfigure the camera with new resolution
-        # If the camera is already started, we need to stop first
-        self.close()
-        
-        self.initial_configure_camera()
-        
-        self.start()
 
     def capture_frame(self):
         """
@@ -146,9 +118,10 @@ class CameraController:
         # Ensure camera is started
         if not self.started:
             self.start()
-        
-        self.set_quality(mode="high")
-        frame = self.capture_frame()
+
+        for i in range(5):
+            frame = self.capture_frame()
+            time.sleep(0.3)
         
         # Generate timestamped file name
         timestamp = time.strftime("%Y_%m_%d %H_%M_%S")
@@ -166,8 +139,9 @@ class CameraController:
         success = cv2.imwrite(filepath, frame, [int(cv2.IMWRITE_JPEG_QUALITY), self.current_jpeg_quality])
         if success:
             print(f"Image saved: {filepath} (resolution={self.current_resolution}, quality={self.current_jpeg_quality})")
+            return True
         else:
-            print(f"Failed to save image: {filepath}")
+            return False
 
     def get_gray_card_avg_rgb(self, frame, roi_size=100):
         """
@@ -180,7 +154,6 @@ class CameraController:
         
         # Take the integer part of the quotient
         cy, cx = (height * 6) // 7, width // 2
-        # cy, cx = (height * 3) // 5, width // 2
         
         # Compute boundaries of the ROI, making sure we don't go out of frame
         y1 = max(0, cy - half_roi)
@@ -196,7 +169,7 @@ class CameraController:
         r_mean = int(roi[..., 0].mean())
         g_mean = int(roi[..., 1].mean())
         b_mean = int(roi[..., 2].mean())
-        
+
         return (r_mean, g_mean, b_mean)
 
     def auto_white_balance(self):
@@ -226,30 +199,37 @@ class CameraController:
             return None
 
     def set_awb_from_gray_card(self):
-        """
-        Perform white balance calibration based on the gray card region.
-        """
         self.start()
-
         print("Capturing the gray card region for white balance calibration...")
-        time.sleep(1)  # Wait for the camera to stabilize
+
+        # Close auto AWB
+        self.picam2.set_controls({"AwbEnable": 0})
+        time.sleep(1)
+
         frame = self.capture_frame()
 
-        # Get the average RGB values from the gray card region
+        # calculate ROI
         r_mean, g_mean, b_mean = self.get_gray_card_avg_rgb(frame)
+        if r_mean == 0 or b_mean == 0:
+            print("Error: invalid ROI or no valid color data.")
+            return
 
-        # Calculate white balance gains (G channel as reference)
         awb_gain_r = g_mean / r_mean
         awb_gain_b = g_mean / b_mean
 
-        # Apply manual white balance settings
-        self.picam2.set_controls({
-            "AwbMode": 0,  # Disable automatic white balance
-            "AwbGainR": awb_gain_r,
-            "AwbGainB": awb_gain_b
-        })
+        # manl
+        self.picam2.set_controls({"ColourGains": (awb_gain_r, awb_gain_b)})
 
-        print(f"White balance calibration completed (Gray Card): AwbGainR={awb_gain_r:.3f}, AwbGainB={awb_gain_b:.3f}")
+        print(f"Manual WB Gains set: R={awb_gain_r:.3f}, B={awb_gain_b:.3f}")
+        return awb_gain_r, awb_gain_b
+
+
+    def set_awb_gains(self, awb_gain_r, awb_gain_b):
+        """
+        Perform white balance calibration based on the gray card region.
+        """
+        # Apply manual white balance settings
+        self.picam2.set_controls({"ColourGains": (awb_gain_r, awb_gain_b)})
 
     def auto_adjust_exposure(self, target_brightness=128, tolerance=5, max_iterations=20):
         """
@@ -273,7 +253,7 @@ class CameraController:
             frame = self.capture_frame()
             
             # Extract the average R, G, B in the center ROI
-            r_mean, g_mean, b_mean = self.get_gray_card_avg_rgb(frame)
+            b_mean, g_mean, r_mean = self.get_gray_card_avg_rgb(frame)
             # Calculate brightness as the average of R, G, B
             brightness = (r_mean + g_mean + b_mean) / 3.0
             

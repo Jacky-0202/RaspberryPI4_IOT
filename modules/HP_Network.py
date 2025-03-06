@@ -16,12 +16,6 @@ class RaspController:
         """
         Stops NetworkManager, assigns a static IP to wlan0,
         and restarts hostapd to enable AP (Access Point) mode.
-        
-        Steps performed:
-        1. systemctl stop NetworkManager
-        2. ifconfig wlan0 10.3.141.1 netmask 255.255.255.0 up
-        3. systemctl restart hostapd
-        4. auto display html on other divice
         """
         subprocess.run(["sudo", "systemctl", "stop", "NetworkManager"], check=True)
         subprocess.run(
@@ -35,10 +29,6 @@ class RaspController:
     def stop_ap_mode(self):
         """
         Stops hostapd (AP mode) and restarts NetworkManager.
-        
-        Steps performed:
-        1. systemctl stop hostapd
-        2. systemctl restart NetworkManager
         """
         subprocess.run(["sudo", "systemctl", "stop", "hostapd"], check=True)
         subprocess.run(["sudo", "systemctl", "start", "NetworkManager"], check=True)
@@ -47,9 +37,6 @@ class RaspController:
         """
         Restarts the NetworkManager service.
         This re-initializes network interfaces and connections.
-        
-        Step performed:
-        1. systemctl restart NetworkManager
         """
         subprocess.run(["sudo", "systemctl", "restart", "NetworkManager"], check=True)
 
@@ -86,7 +73,7 @@ class RaspController:
         # IP 
         subprocess.run(["sudo", "sh", "-c", "echo 1 > /proc/sys/net/ipv4/ip_forward"], check=True)
         # NAT
-        subprocess.run(["sudo", "iptables", "-t", "nat", "-F"], check=True)  # 清空舊規則
+        subprocess.run(["sudo", "iptables", "-t", "nat", "-F"], check=True)  # clean old rule
         subprocess.run([
             "sudo", "iptables", "-t", "nat", "-A", "PREROUTING",
             "-p", "tcp", "--dport", "80",
@@ -95,44 +82,89 @@ class RaspController:
         subprocess.run(["sudo", "iptables", "-t", "nat", "-A", "POSTROUTING", "-j", "MASQUERADE"], check=True)
         print("Captive portal NAT & DNS setup complete.")
 
-    def get_wifi_details(self):
+    def get_network_details(self, interface="wlan0"):
         """
-        Obtains Wi-Fi details (Link Quality and Signal Level) from iwconfig for wlan0.
-        Returns a dictionary containing:
+        Obtains network details based on the interface type.
+        - If it's a Wi-Fi interface (wlan0), it retrieves Link Quality and Signal Level using iwconfig.
+        - If it's a wired Ethernet interface (eth0), it retrieves Link Detected and Speed using ethtool.
+        
+        Returns a dictionary:
+            For Wi-Fi (wlan0):
             {
+                "Interface": <str>,
                 "Link Quality": <int>,
                 "Signal Level": <int>
             }
-        or None if the information cannot be parsed.
+            
+            For Ethernet (eth0):
+            {
+                "Interface": <str>,
+                "Link Detected": <bool>,
+                "Speed": <int> (in Mbps)
+            }
+        
+        Returns None if the interface is invalid or data cannot be retrieved.
         """
         try:
-            result = subprocess.run(
-                ["iwconfig", "wlan0"],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            output = result.stdout
+            if interface.startswith("wlan"):  # Wi-Fi interface
+                result = subprocess.run(
+                    ["iwconfig", interface],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                output = result.stdout
 
-            # Parse Link Quality
-            match_quality = re.search(r"Link Quality=(\d+)/(\d+)", output)
-            # Parse Signal Level
-            match_signal = re.search(r"Signal level=(-?\d+) dBm", output)
+                # Analyzing link quality and signal levels
+                match_quality = re.search(r"Link Quality=(\d+)/(\d+)", output)
+                match_signal = re.search(r"Signal level=(-?\d+) dBm", output)
 
-            if match_quality and match_signal:
-                # e.g., "Link Quality=54/70" => link_quality=54
-                link_quality = int(match_quality.group(1))
-                # e.g., "Signal level=-45 dBm" => signal_level=-45
-                signal_level = int(match_signal.group(1))
+                if match_quality and match_signal:
+                    link_quality = int(match_quality.group(1))
+                    signal_level = int(match_signal.group(1))
+
+                    return {
+                        "Interface": interface,
+                        "Link Quality": link_quality,
+                        "Signal Level": signal_level
+                    }
+            
+            elif interface.startswith("eth"):  # Wired network interface
+                result = subprocess.run(
+                    ["ethtool", interface],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                output = result.stdout
+
+                # Analysis Link Detected
+                match_link = re.search(r"Link detected:\s+(yes|no)", output, re.IGNORECASE)
+                # Analysis Speed
+                match_speed = re.search(r"Speed:\s+(\d+)Mb/s", output)
+
+                if match_link:
+                    link_detected = match_link.group(1).lower() == "yes"
+                else:
+                    link_detected = None
+
+                if match_speed:
+                    speed = int(match_speed.group(1))
+                else:
+                    speed = None
+
                 return {
-                    "Link Quality": link_quality,
-                    "Signal Level": signal_level
+                    "Interface": interface,
+                    "Link Detected": link_detected,
+                    "Speed": speed
                 }
-            return None
+            
+            else:
+                return None  # Unknown interface
 
         except subprocess.CalledProcessError:
-            return None
-
+            return None  # Unable to execute command
+    
     def is_wifi_connected(self, test_url="http://google.com"):
         """Check Wi-Fi connectivity by attempting to reach a known URL."""
         try:
@@ -168,7 +200,7 @@ class WifiConfigGui:
         Read an external 'main.html' file for the returned HTML content.
         Adjust the path to match your directory structure.
         """
-        html_file_path = os.path.join(os.path.dirname(__file__), "main.html")
+        html_file_path = "main.html"
         with open(html_file_path, "r", encoding="utf-8") as f:
             return f.read()
         

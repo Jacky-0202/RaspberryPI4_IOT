@@ -23,43 +23,42 @@ update: 2025-02-24
 
 | Code    | Message                                        |
 | ------- | ---------------------------------------------- |
-| **N01** | Entering network parameter input phase         |
-| **N02** | No SSID or password recorded                   |
-| **N03** | Enabling network priority                      |
-| **N04** | Automatically searching for available networks |
-| **N05** | Network detected, but signal is unstable       |
-| **N06** | Network connection successful                  |
-| **N07** | Incorrect SSID or password entered             |
-| **N08** | Reading network signal strength                |
-| **N09** | Successfully uploaded compressed file          |
-| **N10** | Upload function disabled                       |
+| **M00** | Entering network parameter input phase         |
+| **M00** | No SSID or password recorded                   |
+| **M00** | Enabling network priority                      |
+| **M00** | Automatically searching for available networks |
+| **M00** | Network detected, but signal is unstable       |
+| **M00** | Network connection successful                  |
+| **M00** | Incorrect SSID or password entered             |
+| **M00** | Reading network signal strength                |
+| **M00** | Successfully uploaded compressed file          |
+| **M00** | Upload function disabled                       |
 |         |                                                |
 | ===     | ===                                            |
-| **C01** | Camera started successfully                    |
-| **C02** | Using saved camera focus distance parameter    |
-| **C03** | Saving camera focus distance parameter         |
-| **C04** | Using saved white balance parameters           |
-| **C05** | Saving white balance parameters                |
-| **C06** | Auto exposure adjustment completed             |
-| **C07** | Image successfully saved                       |
-| **C08** | Camera closed                                  |
-| **C09** | Failed to get AWB gains.                       |
+| **M00** | Camera started successfully                    |
+| **M00** | Using saved camera focus distance parameter    |
+| **M00** | Saving camera focus distance parameter         |
+| **M00** | Using saved white balance parameters           |
+| **M00** | Saving white balance parameters                |
+| **M00** | Auto exposure adjustment completed             |
+| **M00** | Image successfully saved                       |
+| **M00** | Camera closed                                  |
+| **M00** | Failed to get AWB gains.                       |
 |         |                                                |
 | ===     | ===                                            |
-| **D01** | Configuration file saved                       |
-| **D02** | Compressing files for upload (.zip)            |
+| **M00** | Configuration file saved                       |
+| **M00** | Compressing files for upload (.zip)            |
 |         |                                                |
 | ===     | ===                                            |
-| **S01** | Successfully recorded sensor data              |
-| **S02** | Successfully uploaded sensor data              |
-| **S03** | Sensor function disabled                       |
+| **M00** | Successfully recorded sensor data              |
+| **M00** | Successfully uploaded sensor data              |
+| **M00** | Sensor function disabled                       |
 
 
 > PSWD : 對應網路的 password 縮寫
 
 - error log
 
-| 編號   | 訊息                                |
-| ---- | --------------------------------- |
-| N100 | Unable to connect to the Internet |
-|      |                                   |
+| Code    | Message                           |
+| ------- | --------------------------------- |
+| **E00** | Unable to connect to the Internet |

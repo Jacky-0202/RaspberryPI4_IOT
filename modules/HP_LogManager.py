@@ -1,15 +1,18 @@
 import os
 import serial
 import logging
+from pathlib import Path
 from ruamel.yaml import YAML
 from datetime import datetime
+
+YAML = YAML()
 
 class LogManager:
     """
     A class for managing log directories, loggers, and logging operations.
     """
 
-    def __init__(self, log_dir="./upload_files/LOG"):
+    def __init__(self, log_dir="./upload_files/LOG", config_file="config.yaml"):
         """
         Initialize the LogManager by creating the log directory (if not exists)
         and setting up the handlers for 'messages.log' and 'errors.log'.
@@ -41,17 +44,26 @@ class LogManager:
         self.serial_port = serial.Serial('/dev/serial0', 115200, timeout=1)
         self.serial_port.reset_input_buffer()
 
-    def load_config(self, config_file = "config.yaml"):
-        """
-        Loads a YAML configuration file using ruamel.yaml.
+        # Set the absolute path of config.yaml
+        self.config_file = config_file
 
-        :param config_file(str): The path to the YAML configuration file.
-        :return: The parsed YAML data as a Python object (dict or list).
-        :raises FileNotFoundError: If the config file is not found.
+    def load_config(self):
         """
-        yaml = YAML()
-        with open(config_file, "r", encoding="utf-8") as f:
-            return yaml.load(f)
+        Load a YAML configuration file using ruamel.yaml.
+        """
+        
+        with open(self.config_file, "r", encoding="utf-8") as f:
+            return YAML.load(f)
+        
+    def save_config(self, CONFIG_DATA):
+        """
+        Save the current CONFIG_DATA to the YAML configuration file.
+        """
+        if CONFIG_DATA is None:
+            raise ValueError("No configuration data to save!")
+
+        with open(self.config_file, "w", encoding="utf-8") as file:
+            YAML.dump(CONFIG_DATA, file)
 
     def log_message(self, level, code, description):
         """

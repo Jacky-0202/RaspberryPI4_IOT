@@ -10,7 +10,7 @@ from gpiozero import CPUTemperature
 
 class DataUploader:
     def __init__(self, 
-                 version_name="PDS_WIFI_V1",
+                 version_name="PDS_V1",
                  location="Hipoint_GH",
                  SensorReader=None):
         """
@@ -49,8 +49,8 @@ class DataUploader:
         Upload sensor data (temperature, humidity, and light intensity) to the server via UDP.
         Wi-Fi and network details are optionally retrieved from the WifiInfo instance.
         """
-        link_quality = wifi_details["Link Quality"]
-        signal_level = wifi_details["Signal Level"]
+        link_quality = wifi_details.get("Link Quality", 0)
+        signal_level = wifi_details.get("Signal Level", 0)
 
         cpu_temp = round(self.cpu_manager.temperature, 2)
         disk_space = self.get_disk_space()
