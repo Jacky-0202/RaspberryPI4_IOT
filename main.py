@@ -108,13 +108,12 @@ if __name__ == "__main__":
 # # ================================
 
     if Rasp_Controller.is_wifi_connected():
-        # Set RTC (synchronize time)
-        Log_Manager.sync_rtc()
+
         current_hour = datetime.now().hour
 
         Log_Manager.log_message("info", "M00", "Network connection successful")
 
-        if current_hour in EXECUTION_HOURS:
+        if current_hour in EXECUTION_HOURS and Rasp_Camera.picam2 is not None:
             try:
                 # Start camera in default (low) mode
                 Rasp_Camera.start()
@@ -140,7 +139,7 @@ if __name__ == "__main__":
                 awb_gain_b = CONFIG_DATA["CAMERA"].get("AWB_B")
                 if awb_gain_r is not None and awb_gain_b is not None:
                     Rasp_Camera.set_awb_gains(awb_gain_r, awb_gain_b)
-                    Log_Manager.log_message("info", "C04", f"Using saved white balance parameters R={awb_gain_r}, B={awb_gain_b}")
+                    Log_Manager.log_message("info", "M00", f"Using saved white balance parameters R={awb_gain_r}, B={awb_gain_b}")
                     print(f"Using saved AWB: R={awb_gain_r}, B={awb_gain_b}")
                 else:
                     result = Rasp_Camera.auto_white_balance()
@@ -167,9 +166,8 @@ if __name__ == "__main__":
                     Log_Manager.log_message("info", "M00", "Image successfully saved")
                 else:
                     Log_Manager.log_message("error", "E00", "Image save error")
-                
-                
 
+                
             finally:
                 # Save the updated configuration back to the file
                 Log_Manager.save_config(CONFIG_DATA)
@@ -178,6 +176,12 @@ if __name__ == "__main__":
                 # Close the camera
                 Rasp_Camera.close()
                 Log_Manager.log_message("info", "M00", "Camera closed")
+                
+        else:
+            Log_Manager.log_message("error", "M00", "Camera can't open")
+
+
+
 
 # ================================
 # Sensor Data Collection & Image(.zip) Upload
@@ -204,19 +208,28 @@ if __name__ == "__main__":
         try:
             # Collect sensor data
             temperatures, humidities, lux_values = Sensor_Reader.continuous_read(num_reads=10, interval=0.1)
-            print("Successfully recorded sensor data")
-            Log_Manager.log_message("info", "M00", "Successfully recorded sensor data")
-            
 
+            if temperatures == 0 or humidities == 0:
+                Log_Manager.log_message("error", "E00", "Failed to record temperature or humidity data")
+
+            if lux_values == 0:
+                Log_Manager.log_message("error", "E00", "Failed to record lux data")
+
+            if temperatures != 0 and humidities != 0 and lux_values != 0:
+                Log_Manager.log_message("info", "M00", "Successfully recorded sensor data")
+            
             Log_Manager.log_message("info", "M00", "Reading network signal strength")
 
             # Upload sensor data to the server
             Data_Uploader.upload_sensor_data(temperatures, humidities, lux_values, wifi_details)
-            Log_Manager.log_message("info", "M00", "Using saved camera focus distance parameter")
+            Log_Manager.log_message("info", "M00", "Already upload sensor data")
 
             # Compress all files in the upload directory
             Data_Uploader.compress_each_file_in_directory(UPLOAD_DIR)
             Log_Manager.log_message("info", "M00", "Compressing files for upload (.zip)")
+
+            # wait for record log
+            time.sleep(1)
 
             # Upload all `.zip` files from the directory
             full_dir = Path(__file__).parent / UPLOAD_DIR
@@ -236,6 +249,9 @@ if __name__ == "__main__":
             Log_Manager.log_message("info", "M00", "Sensor function disabled")
             Data_Uploader.close()
             Log_Manager.log_message("info", "M00", "Upload function disabled")
+
+            # Set RTC (synchronize time)
+            Log_Manager.sync_rtc()
 
     else:
         print("Unable to connect to the Internet")

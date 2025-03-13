@@ -40,17 +40,34 @@ class RaspController:
         """
         subprocess.run(["sudo", "systemctl", "restart", "NetworkManager"], check=True)
 
-    def connect_wifi_system_scope(self, ssid, pswd, conn_name="mywifi"):
+    def connect_wifi_system_scope(self, ssid, pswd):
         """
-        Create or update a system-scoped Wi-Fi connection for the specified SSID
-        (via nmcli) without triggering any desktop pop-ups.
+        :param ssid: Target Wi-Fi network name (SSID).
+        :param pswd: Wi-Fi password.
         """
         try:
-            # 1) Remove old connection if it exists (avoid conflicts)
+            # 1.Ensure NetworkManager is running
             subprocess.run(["sudo", "systemctl", "start", "NetworkManager"], check=True)
-            subprocess.run(["nmcli", "connection", "delete", conn_name], check=False)
 
-            # 2) Create a new system-scoped Wi-Fi connection
+            # 2.Get all saved Wi-Fi connection names
+            result = subprocess.run(
+                ["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"],
+                capture_output=True, text=True, check=True
+            )
+
+            # Parse the output and filter Wi-Fi connection names
+            connections = result.stdout.strip().split("\n")
+            wifi_connections = [line.split(":")[0] for line in connections if "wifi" in line]
+
+            # 3.Delete all existing Wi-Fi connections (but keep SSID passwords intact)
+            for conn in wifi_connections:
+                subprocess.run(["nmcli", "connection", "delete", conn], check=False)
+                print(f"Deleted Wi-Fi connection: {conn}")
+
+            # 4.Set a fixed Wi-Fi connection name (ensuring only one exists)
+            conn_name = "mywifi"
+
+            # 5.Create a new Wi-Fi connection with the specified SSID and password
             subprocess.run([
                 "nmcli", "connection", "add",
                 "type", "wifi",
@@ -61,8 +78,10 @@ class RaspController:
                 "wifi-sec.psk", pswd
             ], check=True)
 
-            # 3) Bring up the connection
-            subprocess.run(["nmcli", "connection", "up", "mywifi"], check=True)
+            # 6.Activate the newly created Wi-Fi connection
+            subprocess.run(["nmcli", "connection", "up", conn_name], check=True)
+
+            print(f"Successfully connected to Wi-Fi: {ssid} (Connection Name: {conn_name})")
 
         except subprocess.CalledProcessError as e:
             print(f"Failed to connect to {ssid}. Error: {e}")
@@ -120,12 +139,14 @@ class RaspController:
                 match_signal = re.search(r"Signal level=(-?\d+) dBm", output)
 
                 if match_quality and match_signal:
-                    link_quality = int(match_quality.group(1))
+                    link_quality = int(match_quality.group(1))  # Numerator (70)
+                    max_quality = int(match_quality.group(2))  #  Denominator (70)
+                    quality_percent = int((link_quality / max_quality) * 100)
                     signal_level = int(match_signal.group(1))
 
                     return {
                         "Interface": interface,
-                        "Link Quality": link_quality,
+                        "Link Quality": quality_percent,
                         "Signal Level": signal_level
                     }
             
@@ -172,15 +193,14 @@ class RaspController:
             if response.status_code == 200:
                 return True
         except requests.RequestException:
-            self.log("error", "Wi-Fi connection failed.")
+            print("error", "Wi-Fi connection failed.")
         return False
 
 
 import os
-import sys
-import time
 import signal
 import uvicorn
+import threading
 from ruamel.yaml import YAML
 from fastapi import FastAPI, Form, BackgroundTasks
 from fastapi.responses import HTMLResponse
@@ -194,6 +214,10 @@ class WifiConfigGui:
         self.app = FastAPI()
         self.setup_routes()
         self.html_content = self.load_html()
+
+        self.ap_timeout = 240
+        self.start_time = None
+        self.running = False
 
     def load_html(self):
         """
@@ -326,7 +350,27 @@ class WifiConfigGui:
         """
         Start the FastAPI service on port 8000 (default).
         """
+        self.running = True
+        self.start_time = time.time()
+
+        threading.Thread(target=self.monitor_timeout, daemon=True).start()
+
         uvicorn.run(self.app, host=self.host, port=8000)
+
+    def monitor_timeout(self):
+        """
+        Continuously monitor whether AP mode has timed out
+        """
+        while self.running:
+            elapsed_time = time.time() - self.start_time
+            if elapsed_time > self.ap_timeout:
+                print("AP mode times out rpi will be automatically shut down...")
+                self.shutdown_server()
+                time.sleep(10)
+                os.system("sudo shutdown -h now") 
+                break
+            time.sleep(5)
+            
 
     def shutdown_server(self):
         """
@@ -335,9 +379,11 @@ class WifiConfigGui:
           2) Restarts NetworkManager
           3) Sends an interrupt signal to stop the Uvicorn server (instead of sys.exit())
         """
+        self.running = False
         time.sleep(3)
         try:
             # Send SIGINT to self process to stop uvicorn.run()
             os.kill(os.getpid(), signal.SIGINT)  # Simulates Ctrl+C
         except subprocess.CalledProcessError as e:
             print(f"Failed to restart NetworkManager: {e}")
+

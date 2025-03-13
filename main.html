@@ -93,9 +93,9 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.PRIORITY === true) {
-                        document.getElementById('autoState').innerText = 'ON';
-                    } else {
                         document.getElementById('autoState').innerText = 'OFF';
+                    } else {
+                        document.getElementById('autoState').innerText = 'ON';
                     }
                 })
                 .catch(console.error);
@@ -109,9 +109,9 @@
             .then(response => response.json())
             .then(data => {
                 if (data.PRIORITY === true) {
-                    document.getElementById('autoState').innerText = 'ON';
-                } else {
                     document.getElementById('autoState').innerText = 'OFF';
+                } else {
+                    document.getElementById('autoState').innerText = 'ON';
                 }
             })
             .catch(console.error);

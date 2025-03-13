@@ -15,58 +15,54 @@ Wifi_Gui = WifiConfigGui()
 Log_Manager = LogManager()
 Yaml = YAML()
 
+# Load configuration file
+CONFIG_DATA = Log_Manager.load_config()
+PDS_ID = CONFIG_DATA["CONFIG"].get("PDS_ID")
+PDS_MODE = CONFIG_DATA["CONFIG"].get("PDS_MODE")
+EXECUTION_HOURS = CONFIG_DATA["RPI"].get("EXECUTION_HOURS")
+NETWORK_THRES = CONFIG_DATA["NETWORK"].get("NETWORK_THRES")
+
 # =================================
+
+# ================================
+# Wi-Fi Configuration & Connection
+# ================================
+
 
 if __name__ == "__main__":
 
-    while True:
-
+    while PDS_MODE == "WIFI":
+        # Reload configuration data before each attempt
         CONFIG_DATA = Log_Manager.load_config()
 
-        # Get Wi-Fi details from config
+        print("Entering network parameter input phase")
+
+        # Retrieve Wi-Fi details from configuration file
         wifi_ssid = CONFIG_DATA["NETWORK"].get("SSID")
         wifi_password = CONFIG_DATA["NETWORK"].get("PASW")
         wifi_priority = CONFIG_DATA["NETWORK"].get("PRIORITY", False)
-        network_thres = CONFIG_DATA["NETWORK"].get("NETWORK_THRES")
 
-        # Check if Wi-Fi details are available
+        # Check if Wi-Fi credentials not exist
         if not wifi_ssid or not wifi_password:
             Rasp_Controller.start_ap_mode()
             Wifi_Gui.run_server()
             Rasp_Controller.stop_ap_mode()
-            continue
-    
-        # If Wi-Fi priority is enabled, switch to the specified SSID
+            continue  # Restart loop after user input
+
+        # If Wi-Fi priority is enabled, attempt to connect to the specified SSID
         if wifi_priority:
             Rasp_Controller.connect_wifi_system_scope(ssid=wifi_ssid, pswd=wifi_password)
         else:
             Rasp_Controller.restart_networkmanager()
 
-        # Wait a few seconds to check the connection status
+        # Wait for 20 seconds to ensure network stability
         time.sleep(20)
 
-        # Check if connected
+        # Check if the system is successfully connected to Wi-Fi
         if Rasp_Controller.is_wifi_connected():
-            # Get Wi-Fi details after attempting to connect
-            wifi_details = Rasp_Controller.get_wifi_details()
-            link_quality = wifi_details["Link Quality"]
-            signal_level = wifi_details["Signal Level"]
-
-            print(f"Link Quality : {link_quality}")
-            print(f"Signal Level : {signal_level}")
-
-            if "Link Quality" in wifi_details and link_quality < network_thres:
-                print("Wi-Fi connected, but signal is weak.")
-            print("Wi-Fi connection successful!")
-            break
+            break  # Exit loop when successfully connected
         else:
-            print("Wi-Fi connection failed. Restarting AP mode for new input.")
             Rasp_Controller.start_ap_mode()
             Wifi_Gui.run_server()
             Rasp_Controller.stop_ap_mode()
-            continue
-
-
-
-    print("Uploading sensor data")
-    print("Uploading photos")
+            continue  # Restart the loop for user input

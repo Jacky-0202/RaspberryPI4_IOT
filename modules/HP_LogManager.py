@@ -110,9 +110,9 @@ class LogManager:
             rtc_time = self.serial_port.readline().decode().strip()
             
             if rtc_time.startswith("REPLY_RTC"):
-                self.log_message("info", "D03", f"RTC time received: {rtc_time}")
+                self.log_message("info", "M00", f"RTC time received: {rtc_time}")
             else:
-                self.log_message("error", "D04", "Failed to retrieve RTC time from control board.")
+                self.log_message("error", "E00", "Failed to retrieve RTC time from control board.")
                 return
 
             # Set RTC to Raspberry Pi's current time
@@ -123,8 +123,8 @@ class LogManager:
             
             if rtc_time.startswith("SET_RTC"):
                 parsed_time = rtc_time.split(" ", 1)[1]
-                self.log_message("info", "D05", f"RTC successfully synchronized. Current RTC time: {parsed_time}")
+                self.log_message("info", "M00", f"RTC successfully synchronized. Current RTC time: {parsed_time}")
             else:
-                self.log_message("error", "D100", f"Failed to set RTC time on control board. Response: {rtc_time}")
+                self.log_message("error", "E00", f"Failed to set RTC time on control board. Response: {rtc_time}")
         except Exception as e:
-            self.log_message("error", "D101", f"RTC synchronization error: {e}")
+            self.log_message("error", "E00", f"RTC synchronization error: {e}")

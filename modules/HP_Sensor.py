@@ -42,12 +42,12 @@ class SensorReader:
         try:
             data = self.read_i2c_data(self.temphum_detector, SHT20_I2C_ADDR, TRIGGER_TEMP_MEASURE_HOLD, 2)
             if not data or len(data) < 2:  # Check if data is empty or insufficient
-                return 0.0
+                return 0
             temperature = ((data[0] << 8) | data[1]) * (175.72 / 65536.0) - 46.85
             return temperature
         except:
             print("read temperature error")
-            return 0.0
+            return 0
 
     def read_humidity(self):
         """
@@ -57,12 +57,12 @@ class SensorReader:
         try:
             data = self.read_i2c_data(self.temphum_detector, SHT20_I2C_ADDR, TRIGGER_HUMD_MEASURE_HOLD, 2)
             if not data or len(data) < 2:  # Check if data is empty or insufficient
-                return 0.0
+                return 0
             humidity = ((data[0] << 8) | data[1]) * (125.0 / 65536.0) - 6.0
             return humidity
         except:
             print("read humidity error")
-            return 0.0
+            return 0
 
     def read_light(self):
         """
@@ -72,13 +72,13 @@ class SensorReader:
         try:
             data = self.read_i2c_data(self.lux_detector, LIGHT_SENSOR_ADDRESS, 0, 4)
             if not data or len(data) < 4:  # Check if data is empty or insufficient
-                return 0.0
+                return 0
             lux_value = (data[3] << 24) | (data[2] << 16) | (data[1] << 8) | data[0]
             lux = lux_value * 1.4 / 1000  # Convert raw value to lux
             return lux
         except:
             print("read light error")
-            return 0.0
+            return 0
 
 
     def continuous_read(self, num_reads=10, interval=0.1):

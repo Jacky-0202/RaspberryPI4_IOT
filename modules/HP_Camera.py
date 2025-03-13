@@ -1,6 +1,7 @@
 import os
 import time
 import cv2
+import subprocess
 from datetime import datetime
 from picamera2 import Picamera2
 
@@ -13,8 +14,14 @@ class CameraController:
     def __init__(self, imgs_dir="upload_files"):
         """Initialize the camera, directories, and default settings."""
         self.imgs_dir = imgs_dir
-        self.picam2 = Picamera2()
+
+        # Do not create a camera object to avoid subsequent errors
+        if not self.check_camera_available():
+            self.picam2 = None
+            return
         
+        self.picam2 = Picamera2()
+
         # Define resolutions
         self.current_resolution = (4608, 2596)
         
@@ -38,6 +45,19 @@ class CameraController:
             }
         )
         self.picam2.configure(config)
+
+    def check_camera_available(self):
+        try:
+            result = subprocess.run(["libcamera-hello", "--list-cameras"], capture_output=True, text=True)
+            if "Available cameras" in result.stdout:
+                print("The camera has detected")
+                return True
+            else:
+                print("Camera not detected")
+                return False
+        except Exception as e:
+            print(f"error: {e}")
+            return False
 
     def start(self):
         """Start the camera if not already running."""
@@ -82,7 +102,10 @@ class CameraController:
         print(f"Auto Focus Window set to: {af_window_pixels}")
 
     def auto_focus(self):
-        """Perform an autofocus cycle."""
+        """
+        Perform an autofocus cycle.
+        7.77 is defalut len position by auto focus
+        """
         try:
             self.picam2.set_controls({"AfMode": 1})
             success = self.picam2.autofocus_cycle()
@@ -92,9 +115,10 @@ class CameraController:
                 lens_position = metadata.get("LensPosition", None)
                 return lens_position if lens_position is not None else "LensPosition not available in metadata."
             else:
-                return "Auto-focus failed."
+                return 7.77
         except Exception as e:
             print(f"Error during auto-focus: {e}")
+            return 7.77
 
     def set_focus_position(self, lens_position):
         """
